@@ -24,27 +24,41 @@ router.get('/', function(req, res) {
 router.route('/accounts')
 
   .post(function(req, res) {
-    const account = new Account()
-    account.name = req.body.name
-
-    account.save(function(err) {
-      if (err) return sendError(res, err)
-
-      res.json({ message: 'Account created' })
-    })
+    Account({ name: req.body.name }).save()
+    .then(() => res.json({ message: 'Account created' }))
+    .catch((err) => res.json(err))
   })
 
   .get(function(req, res) {
-    Account.find(function(err, accounts) {
-      if (err) return sendError(res, err)
-
-      res.json(accounts)
-    })
+    Account.find()
+    .then((accounts) => res.json(accounts))
+    .catch((err) => res.json(err))
   })
 
-function sendError(res, err) {
-  res.send(JSON.stringify(err))
-}
+
+router.route('/accounts/:account_id')
+
+  .get(function(req, res) {
+    Account.findById(req.params.account_id)
+    .then((account) => res.json(account))
+    .catch((err) => res.json(err))
+  })
+
+  .put(function(req, res) {
+    const id = req.params.account_id
+    const sentAccount = req.body
+
+    Account.findByIdAndUpdate(id, { name: sentAccount.name })
+    .then(() => res.json({ message: 'Account updated' }))
+    .catch((err) => res.json(err))
+  })
+
+  .delete(function(req, res) {
+    Account.findByIdAndRemove(req.params.account_id)
+    .then(() => res.json({ message: 'Successfully deleted' }))
+    .catch((err) => res.json(err))
+  })
+
 
 app.use('/api', router)
 
