@@ -22,17 +22,29 @@ router.get('/', function(req, res) {
 
 // accounts
 router.route('/accounts')
+
   .post(function(req, res) {
     const account = new Account()
     account.name = req.body.name
 
     account.save(function(err) {
-      if (err) return res.send(JSON.stringify(err))
+      if (err) return sendError(res, err)
 
       res.json({ message: 'Account created' })
     })
   })
 
+  .get(function(req, res) {
+    Account.find(function(err, accounts) {
+      if (err) return sendError(res, err)
+
+      res.json(accounts)
+    })
+  })
+
+function sendError(res, err) {
+  res.send(JSON.stringify(err))
+}
 
 app.use('/api', router)
 
