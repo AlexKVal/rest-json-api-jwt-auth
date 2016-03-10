@@ -20,6 +20,20 @@ router.get('/', function(req, res) {
   res.json({ message: 'welcome' })
 })
 
+// accounts
+router.route('/accounts')
+  .post(function(req, res) {
+    const account = new Account()
+    account.name = req.body.name
+
+    account.save(function(err) {
+      if (err) return res.send(JSON.stringify(err))
+
+      res.json({ message: 'Account created' })
+    })
+  })
+
+
 app.use('/api', router)
 
 app.listen(port, function() {
