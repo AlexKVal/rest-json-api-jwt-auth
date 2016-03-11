@@ -2,9 +2,11 @@
 const express = require('express')
 const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
+const faker = require('faker')
 
 const config = require('./config')
 const Account = require('./app/models/account')
+const User = require('./app/models/user')
 
 const app = express()
 const port = process.env.PORT || 8080
@@ -19,6 +21,26 @@ const router = express.Router()
 router.get('/', function(req, res) {
   res.json({ message: 'welcome' })
 })
+router.get('/setup', function(req, res) {
+  const rndName = faker.name.firstName
+  const rndNumber = faker.random.number
+
+  const usersData = [
+    { name: rndName(), role: 'user', password: rndNumber().toString() },
+    { name: rndName(), role: 'user', password: rndNumber().toString() },
+    { name: rndName(), role: 'user', password: rndNumber().toString() },
+    { name: rndName(), role: 'admin', password: rndNumber().toString() },
+    { name: rndName(), role: 'admin', password: rndNumber().toString() },
+    { name: rndName(), role: 'admin', password: rndNumber().toString() }
+  ]
+
+  const promises = usersData.map((userData) => User(userData).save())
+
+  Promise.all(promises)
+  .then(() => res.json({ message: 'Users added' }))
+  .catch((err) => res.json(err))
+})
+
 
 // accounts
 router.route('/accounts')
