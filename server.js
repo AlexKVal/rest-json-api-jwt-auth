@@ -3,12 +3,14 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
 const faker = require('faker')
+const jwt = require('jsonwebtoken')
 
 const config = require('./config')
 const Account = require('./app/models/account')
 const User = require('./app/models/user')
 
 const app = express()
+app.set('jwtSecret', config.secret)
 const port = process.env.PORT || 8080
 
 mongoose.connect(config.database)
@@ -48,6 +50,26 @@ router.get('/users', function(req, res) {
   .catch((err) => res.json(err))
 })
 
+// authenticate
+router.post('/auth', function(req, res) {
+  const id = req.body.id
+  const sentPassword = req.body.password
+
+  if (!id || !sentPassword) return res.status(400).json({ message: 'submit id and password' })
+
+  User.findById(id)
+  .then((user) => {
+    if (!user) return res.status(404).json({ message: 'user doesn\'t exist' })
+
+    if (user.password !== sentPassword) {
+      return res.status(401).json({ message: 'wrong password' })
+    }
+
+    const token = jwt.sign(user, app.get('jwtSecret'), { expiresIn: 1440 * 60 }) // 24h
+    res.json({ token })
+  })
+  .catch((err) => res.status(400).json({ message: err.message }))
+})
 
 // accounts
 router.route('/accounts')
