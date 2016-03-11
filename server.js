@@ -86,7 +86,7 @@ function getToken(req) {
   return bearerMatches && bearerMatches[1]
 }
 
-// authorization middleware
+// token validation middleware
 router.use(function(req, res, next) {
   const tokenSent = getToken(req)
 
@@ -100,6 +100,14 @@ router.use(function(req, res, next) {
   })
 })
 
+// admin's authorization middleware
+function onlyAdmins(req, res, next) {
+  if (req.user && req.user.role && req.user.role === 'admin') {
+    next()
+  } else {
+    res.status(403).json({ message: 'Insufficient access rights' })
+  }
+}
 
 /**
  * Protected routes
@@ -107,7 +115,7 @@ router.use(function(req, res, next) {
 // accounts
 router.route('/accounts')
 
-  .post(function(req, res) {
+  .post(onlyAdmins, function(req, res) {
     Account({ name: req.body.name }).save()
     .then(() => res.json({ message: 'Account created' }))
     .catch((err) => res.json(err))
@@ -128,7 +136,7 @@ router.route('/accounts/:account_id')
     .catch((err) => res.json(err))
   })
 
-  .put(function(req, res) {
+  .put(onlyAdmins, function(req, res) {
     const id = req.params.account_id
     const sentAccount = req.body
 
@@ -137,7 +145,7 @@ router.route('/accounts/:account_id')
     .catch((err) => res.json(err))
   })
 
-  .delete(function(req, res) {
+  .delete(onlyAdmins, function(req, res) {
     Account.findByIdAndRemove(req.params.account_id)
     .then(() => res.json({ message: 'Successfully deleted' }))
     .catch((err) => res.json(err))
