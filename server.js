@@ -50,6 +50,10 @@ router.get('/users', function(req, res) {
   .catch((err) => res.json(err))
 })
 
+function generateToken(data) {
+  return jwt.sign(data, app.get('jwtSecret'), { expiresIn: 1440 * 60 }) // 24h
+}
+
 // authenticate
 router.post('/auth', function(req, res) {
   const id = req.body.id
@@ -65,12 +69,41 @@ router.post('/auth', function(req, res) {
       return res.status(401).json({ message: 'wrong password' })
     }
 
-    const token = jwt.sign(user, app.get('jwtSecret'), { expiresIn: 1440 * 60 }) // 24h
-    res.json({ token })
+    const tokenData = {
+      id: user.id,
+      name: user.name,
+      role: user.role
+    }
+    res.json({ token: generateToken(tokenData) })
   })
   .catch((err) => res.status(400).json({ message: err.message }))
 })
 
+function getToken(req) {
+  // header "Authorization": "Bearer <token>"
+  const header = req.headers['authorization']
+  const bearerMatches = header && header.match(/Bearer\s(\S+)/)
+  return bearerMatches && bearerMatches[1]
+}
+
+// authorization middleware
+router.use(function(req, res, next) {
+  const tokenSent = getToken(req)
+
+  if (!tokenSent) return res.status(403).send({ message: 'No token provided' })
+
+  jwt.verify(tokenSent, app.get('jwtSecret'), function(err, decoded) {
+    if (err) return res.status(403).json({ message: 'Failed to authenticate token' })
+
+    req.user = decoded
+    next()
+  })
+})
+
+
+/**
+ * Protected routes
+ */
 // accounts
 router.route('/accounts')
 
