@@ -74,7 +74,7 @@ router.post('/auth', function(req, res) {
       name: user.name,
       role: user.role
     }
-    res.json({ token: generateToken(tokenData) })
+    res.status(201).json({ token: generateToken(tokenData) })
   })
   .catch((err) => res.status(400).json({ message: err.message }))
 })
