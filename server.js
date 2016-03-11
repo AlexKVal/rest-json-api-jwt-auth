@@ -90,10 +90,10 @@ function getToken(req) {
 router.use(function(req, res, next) {
   const tokenSent = getToken(req)
 
-  if (!tokenSent) return res.status(403).send({ message: 'No token provided' })
+  if (!tokenSent) return res.status(401).send({ message: 'No token provided' })
 
   jwt.verify(tokenSent, app.get('jwtSecret'), function(err, decoded) {
-    if (err) return res.status(403).json({ message: 'Failed to authenticate token' })
+    if (err) return res.status(401).json({ message: 'Failed to authenticate token' })
 
     req.user = decoded
     next()
