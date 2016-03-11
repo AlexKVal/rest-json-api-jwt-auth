@@ -41,6 +41,13 @@ router.get('/setup', function(req, res) {
   .catch((err) => res.json(err))
 })
 
+// users
+router.get('/users', function(req, res) {
+  User.find({}, 'name role')
+  .then((users) => res.json(users))
+  .catch((err) => res.json(err))
+})
+
 
 // accounts
 router.route('/accounts')
