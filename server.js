@@ -81,9 +81,8 @@ router.post('/auth', function(req, res) {
 
 function getToken(req) {
   // header "Authorization": "Bearer <token>"
-  const header = req.headers['authorization']
-  const bearerMatches = header && header.match(/Bearer\s(\S+)/)
-  return bearerMatches && bearerMatches[1]
+  const header = req.headers.authorization || ''
+  return header.split('Bearer ')[1]
 }
 
 // token validation middleware
