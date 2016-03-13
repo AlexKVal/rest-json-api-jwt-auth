@@ -136,7 +136,11 @@ apiRouter.route('/accounts')
 
   .post(onlyAdmins, function(req, res, next) {
     Account({ name: req.body.name }).save()
-    .then(() => res.json({ message: 'Account created' }))
+    .then((account) => {
+      res.status(201).json(
+        new Serializer('account', { attributes: ['name'] }).serialize(account)
+      )
+    })
     .catch((err) => next(err))
   })
 
@@ -168,13 +172,13 @@ apiRouter.route('/accounts/:account_id')
     const sentAccount = req.body
 
     Account.findByIdAndUpdate(id, { name: sentAccount.name })
-    .then(() => res.json({ message: 'Account updated' }))
+    .then(() => res.status(200).json({ message: 'Account updated' }))
     .catch((err) => next(err))
   })
 
   .delete(onlyAdmins, function(req, res, next) {
     Account.findByIdAndRemove(req.params.account_id)
-    .then(() => res.json({ message: 'Successfully deleted' }))
+    .then(() => res.status(200).json({meta: {}}))
     .catch((err) => next(err))
   })
 
