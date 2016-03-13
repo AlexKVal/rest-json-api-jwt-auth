@@ -4,6 +4,7 @@ const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
 const faker = require('faker')
 const jwt = require('jsonwebtoken')
+const Serializer = require('jsonapi-serializer').Serializer
 const jsonApiErrors = require('jsonapi-errors')
 const {
   BadRequestError,
@@ -59,8 +60,13 @@ app.get('/setup', function(req, res, next) {
  */
 // users
 apiRouter.get('/users', function(req, res, next) {
-  User.find({}, 'name role')
-  .then((users) => res.json(users))
+  const fields = 'name role'
+  User.find({}, fields)
+  .then((users) => {
+    res.json(
+      new Serializer('user', { attributes: fields.split(' ') }).serialize(users)
+    )
+  })
   .catch((err) => next(err))
 })
 
@@ -136,7 +142,11 @@ apiRouter.route('/accounts')
 
   .get(function(req, res, next) {
     Account.find()
-    .then((accounts) => res.json(accounts))
+    .then((accounts) => {
+      res.json(
+        new Serializer('account', { attributes: ['name'] }).serialize(accounts)
+      )
+    })
     .catch((err) => next(err))
   })
 
@@ -145,7 +155,11 @@ apiRouter.route('/accounts/:account_id')
 
   .get(function(req, res, next) {
     Account.findById(req.params.account_id)
-    .then((account) => res.json(account))
+    .then((account) => {
+      res.json(
+        new Serializer('account', { attributes: ['name'] }).serialize(account)
+      )
+    })
     .catch((err) => next(err))
   })
 
