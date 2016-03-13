@@ -4,6 +4,15 @@ const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
 const faker = require('faker')
 const jwt = require('jsonwebtoken')
+const Serializer = require('jsonapi-serializer').Serializer
+const jsonApiErrors = require('jsonapi-errors')
+const {
+  BadRequestError,
+  DbError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError
+} = require('jsonapi-errors/lib/errors')
 
 const config = require('./config')
 const Account = require('./app/models/account')
@@ -18,12 +27,15 @@ mongoose.connect(config.database)
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 
-const router = express.Router()
+const apiRouter = express.Router()
 
-router.get('/', function(req, res) {
-  res.json({ message: 'welcome' })
+/**
+ * not JSON-API routes
+ */
+app.get('/', function(req, res, next) {
+  res.send('Welcome')
 })
-router.get('/setup', function(req, res) {
+app.get('/setup', function(req, res, next) {
   const rndName = faker.name.firstName
   const rndNumber = faker.random.number
 
@@ -39,34 +51,42 @@ router.get('/setup', function(req, res) {
   const promises = usersData.map((userData) => User(userData).save())
 
   Promise.all(promises)
-  .then(() => res.json({ message: 'Users added' }))
-  .catch((err) => res.json(err))
+  .then(() => res.send('Users added'))
+  .catch((err) => res.send(err))
 })
 
+/**
+ * JSON-API routes
+ */
 // users
-router.get('/users', function(req, res) {
-  User.find({}, 'name role')
-  .then((users) => res.json(users))
-  .catch((err) => res.json(err))
+apiRouter.get('/users', function(req, res, next) {
+  const fields = 'name role'
+  User.find({}, fields)
+  .then((users) => {
+    res.json(
+      new Serializer('user', { attributes: fields.split(' ') }).serialize(users)
+    )
+  })
+  .catch((err) => next(err))
 })
 
 function generateToken(data) {
-  return jwt.sign(data, app.get('jwtSecret'), { expiresIn: 1440 * 60 }) // 24h
+  return jwt.sign(data, app.get('jwtSecret'), { expiresIn: 60 * 60 * 12}) // 12h
 }
 
 // authenticate
-router.post('/auth', function(req, res) {
+apiRouter.post('/auth', function(req, res, next) {
   const id = req.body.id
   const sentPassword = req.body.password
 
-  if (!id || !sentPassword) return res.status(400).json({ message: 'submit id and password' })
+  if (!id || !sentPassword) return next(new BadRequestError('submit id and password'))
 
   User.findById(id)
   .then((user) => {
-    if (!user) return res.status(404).json({ message: 'user doesn\'t exist' })
+    if (!user) return next(new NotFoundError('user doesn\'t exist'))
 
     if (user.password !== sentPassword) {
-      return res.status(401).json({ message: 'wrong password' })
+      return next(new UnauthorizedError('wrong password'))
     }
 
     const tokenData = {
@@ -76,7 +96,7 @@ router.post('/auth', function(req, res) {
     }
     res.status(201).json({ token: generateToken(tokenData) })
   })
-  .catch((err) => res.status(400).json({ message: err.message }))
+  .catch((err) => next(err))
 })
 
 function getToken(req) {
@@ -86,13 +106,13 @@ function getToken(req) {
 }
 
 // token validation middleware
-router.use(function(req, res, next) {
+apiRouter.use(function(req, res, next) {
   const tokenSent = getToken(req)
 
-  if (!tokenSent) return res.status(401).send({ message: 'No token provided' })
+  if (!tokenSent) return next(new UnauthorizedError('No token provided'))
 
   jwt.verify(tokenSent, app.get('jwtSecret'), function(err, decoded) {
-    if (err) return res.status(401).json({ message: 'Failed to authenticate token' })
+    if (err) return next(new UnauthorizedError('Failed to authenticate token'))
 
     req.user = decoded
     next()
@@ -104,7 +124,7 @@ function onlyAdmins(req, res, next) {
   if (req.user && req.user.role && req.user.role === 'admin') {
     next()
   } else {
-    res.status(403).json({ message: 'Insufficient access rights' })
+    next(new ForbiddenError('Insufficient access rights'))
   }
 }
 
@@ -112,46 +132,60 @@ function onlyAdmins(req, res, next) {
  * Protected routes
  */
 // accounts
-router.route('/accounts')
+apiRouter.route('/accounts')
 
-  .post(onlyAdmins, function(req, res) {
+  .post(onlyAdmins, function(req, res, next) {
     Account({ name: req.body.name }).save()
-    .then(() => res.json({ message: 'Account created' }))
-    .catch((err) => res.json(err))
+    .then((account) => {
+      res.status(201).json(
+        new Serializer('account', { attributes: ['name'] }).serialize(account)
+      )
+    })
+    .catch((err) => next(err))
   })
 
-  .get(function(req, res) {
+  .get(function(req, res, next) {
     Account.find()
-    .then((accounts) => res.json(accounts))
-    .catch((err) => res.json(err))
+    .then((accounts) => {
+      res.json(
+        new Serializer('account', { attributes: ['name'] }).serialize(accounts)
+      )
+    })
+    .catch((err) => next(err))
   })
 
 
-router.route('/accounts/:account_id')
+apiRouter.route('/accounts/:account_id')
 
-  .get(function(req, res) {
+  .get(function(req, res, next) {
     Account.findById(req.params.account_id)
-    .then((account) => res.json(account))
-    .catch((err) => res.json(err))
+    .then((account) => {
+      res.json(
+        new Serializer('account', { attributes: ['name'] }).serialize(account)
+      )
+    })
+    .catch((err) => next(err))
   })
 
-  .put(onlyAdmins, function(req, res) {
+  .put(onlyAdmins, function(req, res, next) {
     const id = req.params.account_id
     const sentAccount = req.body
 
     Account.findByIdAndUpdate(id, { name: sentAccount.name })
-    .then(() => res.json({ message: 'Account updated' }))
-    .catch((err) => res.json(err))
+    .then(() => res.status(200).json({ message: 'Account updated' }))
+    .catch((err) => next(err))
   })
 
-  .delete(onlyAdmins, function(req, res) {
+  .delete(onlyAdmins, function(req, res, next) {
     Account.findByIdAndRemove(req.params.account_id)
-    .then(() => res.json({ message: 'Successfully deleted' }))
-    .catch((err) => res.json(err))
+    .then(() => res.status(200).json({meta: {}}))
+    .catch((err) => next(err))
   })
 
 
-app.use('/api', router)
+app.use('/api', apiRouter)
+
+app.use(jsonApiErrors)
 
 app.listen(port, function() {
   console.log('Listening on ', port)
