@@ -4,8 +4,6 @@ const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
 const faker = require('faker')
 const jwt = require('jsonwebtoken')
-const Serializer = require('jsonapi-serializer').Serializer
-const Deserializer = require('jsonapi-serializer').Deserializer
 const jsonApiErrors = require('jsonapi-errors')
 const {
   BadRequestError,
@@ -63,11 +61,7 @@ app.get('/setup', function(req, res, next) {
 apiRouter.get('/users', function(req, res, next) {
   const fields = 'name role'
   User.find({}, fields)
-  .then((users) => {
-    res.json(
-      new Serializer('user', { attributes: fields.split(' ') }).serialize(users)
-    )
-  })
+  .then((users) => res.json(User.serialize(users)))
   .catch((err) => next(err))
 })
 
@@ -136,30 +130,18 @@ function onlyAdmins(req, res, next) {
 apiRouter.route('/accounts')
 
   .post(onlyAdmins, function(req, res, next) {
-
-    const jsonApiDataSet = req.body
-    new Deserializer().deserialize(jsonApiDataSet, (err, data) => {
+    Account.deserialize(req.body, (err, data) => {
       if (err) return next(err)
 
       Account(data).save()
-      .then((savedAccount) => {
-        res.status(201).json(
-          new Serializer('account', { attributes: ['name'] }).serialize(savedAccount)
-        )
-      })
+      .then((savedAccount) => res.status(201).json(Account.serialize(savedAccount)))
       .catch((err) => next(err))
     })
-
-
   })
 
   .get(function(req, res, next) {
     Account.find()
-    .then((accounts) => {
-      res.json(
-        new Serializer('account', { attributes: ['name'] }).serialize(accounts)
-      )
-    })
+    .then((accounts) => res.json(Account.serialize(accounts)))
     .catch((err) => next(err))
   })
 
@@ -168,11 +150,7 @@ apiRouter.route('/accounts/:account_id')
 
   .get(function(req, res, next) {
     Account.findById(req.params.account_id)
-    .then((account) => {
-      res.json(
-        new Serializer('account', { attributes: ['name'] }).serialize(account)
-      )
-    })
+    .then((account) => res.json(Account.serialize(account)))
     .catch((err) => next(err))
   })
 

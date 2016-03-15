@@ -11,6 +11,7 @@
     "jsonapi-errors": "^0.1.1",
     "jsonapi-serializer": "^3.0.0",
     "jsonwebtoken": "^5.7.0",
+    "lodash.omit": "^4.1.0",
     "mongoose": "^4.4.6"
   },
   "devDependencies": {
