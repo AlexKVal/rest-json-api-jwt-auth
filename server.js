@@ -5,6 +5,7 @@ const mongoose = require('mongoose')
 const faker = require('faker')
 const jwt = require('jsonwebtoken')
 const Serializer = require('jsonapi-serializer').Serializer
+const Deserializer = require('jsonapi-serializer').Deserializer
 const jsonApiErrors = require('jsonapi-errors')
 const {
   BadRequestError,
@@ -25,7 +26,7 @@ const port = process.env.PORT || 8080
 mongoose.connect(config.database)
 
 app.use(bodyParser.urlencoded({ extended: true }))
-app.use(bodyParser.json())
+app.use(bodyParser.json({ type: 'application/vnd.api+json' })) // ember-data
 
 const apiRouter = express.Router()
 
@@ -135,13 +136,21 @@ function onlyAdmins(req, res, next) {
 apiRouter.route('/accounts')
 
   .post(onlyAdmins, function(req, res, next) {
-    Account({ name: req.body.name }).save()
-    .then((account) => {
-      res.status(201).json(
-        new Serializer('account', { attributes: ['name'] }).serialize(account)
-      )
+
+    const jsonApiDataSet = req.body
+    new Deserializer().deserialize(jsonApiDataSet, (err, data) => {
+      if (err) return next(err)
+
+      Account(data).save()
+      .then((savedAccount) => {
+        res.status(201).json(
+          new Serializer('account', { attributes: ['name'] }).serialize(savedAccount)
+        )
+      })
+      .catch((err) => next(err))
     })
-    .catch((err) => next(err))
+
+
   })
 
   .get(function(req, res, next) {
