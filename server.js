@@ -154,13 +154,15 @@ apiRouter.route('/accounts/:account_id')
     .catch((err) => next(err))
   })
 
-  .put(onlyAdmins, function(req, res, next) {
+  .patch(onlyAdmins, function(req, res, next) {
     const id = req.params.account_id
-    const sentAccount = req.body
+    Account.deserialize(req.body, (err, data) => {
+      if (err) return next(err)
 
-    Account.findByIdAndUpdate(id, { name: sentAccount.name })
-    .then(() => res.status(200).json({ message: 'Account updated' }))
-    .catch((err) => next(err))
+      Account.findByIdAndUpdate(id, data, {new: true})
+      .then((savedAccount) => res.status(201).json(Account.serialize(savedAccount)))
+      .catch((err) => next(err))
+    })
   })
 
   .delete(onlyAdmins, function(req, res, next) {
